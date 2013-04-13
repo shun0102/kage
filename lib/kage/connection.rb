@@ -13,13 +13,13 @@ module Kage
     def unbind
       if !@server_side_close
         if @state == :request
-          info "Client disconnected in the request phase"
+          $log.info "Client disconnected in the request phase"
           super
         elsif @backends && @backends.size == 1 && @responses[master_backend]
-          info "Client disconnected after the master response. Closing master"
+          $log.info "Client disconnected after the master response. Closing master"
           super
         else
-          info "Client disconnected. Waiting for all backends to finish"
+          $log.info "Client disconnected. Waiting for all backends to finish"
         end
       end
     end
@@ -39,7 +39,7 @@ module Kage
         yield
       end
     rescue Exception => e
-      info "#{e} - #{e.backtrace}"
+      $log.error "#{e} - #{e.backtrace}"
     end
 
     def build_headers(parser, headers)
@@ -51,7 +51,7 @@ module Kage
     def connect_backends!(req, headers, backends)
       @backends = select_backends(req, headers, backends).select {|b| backends[b]}
       @backends.unshift master_backend unless @backends.include? master_backend
-      info "Backends for #{req[:method]} #{req[:url]} -> #{@backends}"
+      $log.info "Backends for #{req[:method]} #{req[:url]} -> #{@backends}"
 
       @backends.each do |name|
         s = server name, backends[name]
@@ -69,7 +69,7 @@ module Kage
       self.master_backend = server.master
 
       @session_id = "%016x" % rand(2**64)
-      info "New connection"
+      $log.info "New connection"
 
       @callbacks = server.callbacks
 
@@ -93,7 +93,7 @@ module Kage
           :headers => headers
         }
         @requests.push @request
-        info "#{@request[:method]} #{@request[:url]}"
+        $log.info "#{@request[:method]} #{@request[:url]}"
 
         # decide backends on the first request
         unless @backends
@@ -101,7 +101,7 @@ module Kage
         end
 
         if @backends.size > 1
-          info "Multiple backends for this session: Force close connection (disable keep-alives)"
+          $log.info "Multiple backends for this session: Force close connection (disable keep-alives)"
           headers['Connection'] = 'close'
         end
 
@@ -123,7 +123,7 @@ module Kage
         begin
           @parser << data
         rescue HTTP::Parser::Error
-          info "HTTP parser error: Bad Request"
+          $log.info "HTTP parser error: Bad Request"
           EM.next_tick { close_connection_after_writing }
         end
         nil
@@ -146,23 +146,20 @@ module Kage
           if @backends.all? {|b| @responses[b]}
             callback :on_backends_finished, @backends, @requests, @responses if @backends.size > 1
           else
-            info "Server(s) disconnected before response returned: #{@backends.reject {|b| @responses[b]}}"
+            $log.info "Server(s) disconnected before response returned: #{@backends.reject {|b| @responses[b]}}"
           end
           cleanup!
         end
 
         if backend == master_backend
-          info "Master backend closed connection. Closing downstream"
+          $log.info "Master backend closed connection. Closing downstream"
           :close
         end
       end
     rescue Exception => e
-      info "#{e} - #{e.backtrace}"
+      $log.error "#{e} - #{e.backtrace}"
     end
 
-    def info(msg)
-      puts "#{Time.now.strftime('%H:%M:%S')} [#{@session_id}] #{msg}"
-    end
   end
 end
 

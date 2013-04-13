@@ -1,9 +1,10 @@
 require 'em-proxy'
 require 'kage/connection'
+require 'kage/log'
 
 module Kage
   class ProxyServer < ::Proxy
-    attr_accessor :host, :port, :debug, :client_timeout, :backend_timeout, :backends, :master, :callbacks
+    attr_accessor :host, :port, :debug, :client_timeout, :backend_timeout, :backends, :master, :callbacks, :log_level, :io
 
     def initialize(options = {})
       @host = '0.0.0.0'
@@ -14,10 +15,13 @@ module Kage
       @backends = {}
       @master = nil
       @callbacks = {}
+      @io = STDOUT
+      @log_level = 0
 
       options.each do |k, v|
         send("#{k}=", v)
       end
+      $log = Kage::Log.new(@io, @log_level)
     end
 
     def on_select_backends(&blk); @callbacks[:on_select_backends] = blk; end

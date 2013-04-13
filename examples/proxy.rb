@@ -5,7 +5,7 @@ def compare(a, b)
   p [a, b]
 end
 
-Kage::ProxyServer.start do |server|
+Kage::ProxyServer.start(:log_level => 1) do |server|
   server.port = 8090
   server.host = '0.0.0.0'
   server.debug = false
